@@ -6,6 +6,8 @@
  *  @copyright 2014 Copernica BV
  */
 
+#include <functional>
+
 /**
  *  Set up namespace
  */

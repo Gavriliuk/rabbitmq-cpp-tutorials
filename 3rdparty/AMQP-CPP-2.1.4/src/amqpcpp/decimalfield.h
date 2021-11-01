@@ -197,7 +197,7 @@ public:
      *  To preserve precision DecimalField is returned, containing the number and places.
      *  @return return DecimalField 
      */
-    DecimalField value() const
+    const DecimalField& value() const
     {
         return *this;
     }

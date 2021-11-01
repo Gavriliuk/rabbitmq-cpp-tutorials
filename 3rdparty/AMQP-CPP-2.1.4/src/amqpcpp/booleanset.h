@@ -64,10 +64,10 @@ public:
      *  Copy constructor
      *  @param  that
      */
-    BooleanSet(const BooleanSet &that)
-    {
-        _byte = that._byte;
-    }
+    //BooleanSet(const BooleanSet &that)
+    //{
+    //    _byte = that._byte;
+    //}
 
     /**
      *  Destructor
