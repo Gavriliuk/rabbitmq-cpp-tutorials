@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cassert>
 #include <iostream>
+
 #include <Poco/Net/StreamSocket.h>
 
 #include "SimplePocoHandler.h"
@@ -12,10 +13,10 @@ namespace
 {
     class Buffer
     {
-    public:
-        Buffer(size_t size) :
-                m_data(size, 0),
-                m_use(0)
+    public :
+        Buffer(size_t size)
+        : m_data(size, 0)
+        , m_use(0)
         {
         }
 
@@ -27,8 +28,7 @@ namespace
             }
 
             const size_t length = (size + m_use);
-            size_t write =
-                    length < m_data.size() ? size : m_data.size() - m_use;
+            size_t write = length < m_data.size() ? size : m_data.size() - m_use;
             memcpy(m_data.data() + m_use, data, write);
             m_use += write;
             return write;
@@ -51,14 +51,14 @@ namespace
 
         void shl(size_t count)
         {
-            assert(count<m_use);
+            assert(count < m_use);
 
             const size_t diff = m_use - count;
-            std::memmove(m_data.data(), m_data.data()+count, diff);
+            std::memmove(m_data.data(), m_data.data() + count, diff);
             m_use = m_use - count;
         }
 
-    private:
+    private :
         std::vector<char> m_data;
         size_t m_use;
     };
@@ -66,13 +66,13 @@ namespace
 
 struct SimplePocoHandlerImpl
 {
-    SimplePocoHandlerImpl() :
-            connected(false),
-            connection(nullptr),
-            quit(false),
-            inputBuffer(SimplePocoHandler::BUFFER_SIZE),
-            outBuffer(SimplePocoHandler::BUFFER_SIZE),
-            tmpBuff(SimplePocoHandler::TEMP_BUFFER_SIZE)
+    SimplePocoHandlerImpl()
+    : connected(false)
+    , connection(nullptr)
+    , quit(false)
+    , inputBuffer(SimplePocoHandler::BUFFER_SIZE)
+    , outBuffer(SimplePocoHandler::BUFFER_SIZE)
+    , tmpBuff(SimplePocoHandler::TEMP_BUFFER_SIZE)
     {
     }
 
@@ -84,8 +84,9 @@ struct SimplePocoHandlerImpl
     Buffer outBuffer;
     std::vector<char> tmpBuff;
 };
-SimplePocoHandler::SimplePocoHandler(const std::string& host, uint16_t port) :
-        m_impl(new SimplePocoHandlerImpl)
+
+SimplePocoHandler::SimplePocoHandler(const std::string& host, uint16_t port)
+: m_impl(new SimplePocoHandlerImpl)
 {
     const Poco::Net::SocketAddress address(host, port);
     m_impl->socket.connect(address);
@@ -106,32 +107,34 @@ void SimplePocoHandler::loop()
             if (m_impl->socket.available() > 0)
             {
                 size_t avail = m_impl->socket.available();
-                if(m_impl->tmpBuff.size()<avail)
+                if (m_impl->tmpBuff.size() < avail)
                 {
-                    m_impl->tmpBuff.resize(avail,0);
+                    m_impl->tmpBuff.resize(avail, 0);
                 }
 
                 m_impl->socket.receiveBytes(&m_impl->tmpBuff[0], avail);
                 m_impl->inputBuffer.write(m_impl->tmpBuff.data(), avail);
 
             }
-            if(m_impl->socket.available()<0)
+            if (m_impl->socket.available() < 0)
             {
-                std::cerr<<"SOME socket error!!!"<<std::endl;
+                std::cerr << "SOME socket error!!!" << std::endl;
             }
 
             if (m_impl->connection && m_impl->inputBuffer.available())
             {
-                size_t count = m_impl->connection->parse(m_impl->inputBuffer.data(),
-                        m_impl->inputBuffer.available());
+                size_t count = m_impl->connection->parse(m_impl->inputBuffer.data(), m_impl->inputBuffer.available());
 
                 if (count == m_impl->inputBuffer.available())
                 {
                     m_impl->inputBuffer.drain();
-                } else if(count >0 ){
+                }
+                else if (count > 0)
+                {
                     m_impl->inputBuffer.shl(count);
                 }
             }
+
             sendDataFromBuffer();
 
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -142,7 +145,8 @@ void SimplePocoHandler::loop()
             sendDataFromBuffer();
         }
 
-    } catch (const Poco::Exception& exc)
+    }
+    catch (const Poco::Exception& exc)
     {
         std::cerr<< "Poco exception " << exc.displayText();
     }
@@ -153,13 +157,7 @@ void SimplePocoHandler::quit()
     m_impl->quit = true;
 }
 
-void SimplePocoHandler::SimplePocoHandler::close()
-{
-    m_impl->socket.close();
-}
-
-void SimplePocoHandler::onData(
-        AMQP::Connection *connection, const char *data, size_t size)
+void SimplePocoHandler::onData(AMQP::Connection *connection, const char *data, size_t size)
 {
     m_impl->connection = connection;
     const size_t writen = m_impl->outBuffer.write(data, size);
@@ -175,16 +173,15 @@ void SimplePocoHandler::onConnected(AMQP::Connection *connection)
     m_impl->connected = true;
 }
 
-void SimplePocoHandler::onError(
-        AMQP::Connection *connection, const char *message)
+void SimplePocoHandler::onError(AMQP::Connection *connection, const char *message)
 {
-    std::cerr<<"AMQP error "<<message<<std::endl;
+    std::cerr << "AMQP error " << message << std::endl;
 }
 
 void SimplePocoHandler::onClosed(AMQP::Connection *connection)
 {
-    std::cout<<"AMQP closed connection"<<std::endl;
-    m_impl->quit  = true;
+    std::cout << "AMQP closed connection" << std::endl;
+    m_impl->quit = true;
 }
 
 bool SimplePocoHandler::connected() const
@@ -199,5 +196,10 @@ void SimplePocoHandler::sendDataFromBuffer()
         m_impl->socket.sendBytes(m_impl->outBuffer.data(), m_impl->outBuffer.available());
         m_impl->outBuffer.drain();
     }
+}
+
+void SimplePocoHandler::SimplePocoHandler::close()
+{
+    m_impl->socket.close();
 }
 

@@ -7,15 +7,12 @@
 
 int fib(int n)
 {
-    switch (n)
+    if (n < 2)
     {
-    case 0:
-        return 0;
-    case 1:
-        return 1;
-    default:
-        return fib(n - 1) + fib(n - 2);
+        return n ? 1 : 0;
     }
+
+    return fib(n - 1) + fib(n - 2);
 }
 
 int main(void)
@@ -25,24 +22,32 @@ int main(void)
     AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
 
     AMQP::Channel channel(&connection);
+
     channel.setQos(1);
 
     channel.declareQueue("rpc_queue");
-    channel.consume("").onReceived([&channel](const AMQP::Message &message,
-            uint64_t deliveryTag,
-            bool redelivered)
-    {
-        const auto body = message.message();
-        std::cout<<" [.] fib("<<body<<")"<<std::endl;
 
-        AMQP::Envelope env(std::to_string(fib(std::stoi(body))));
-        env.setCorrelationID(message.correlationID());
+    AMQP::MessageCallback onMessageReceived =
+            [&channel](const AMQP::Message &message, uint64_t deliveryTag, bool redelivered)
+            {
+                const std::string request(message.message());
+                std::cout << " [x] Request: " << request << std::endl << std::flush;
 
-        channel.publish("", message.replyTo(), env);
-        channel.ack(deliveryTag);
-    });
+                const std::string response(std::to_string(fib(std::stoi(request))));
+                std::cout << " [x] Response: " << response << std::endl << std::flush;
 
-    std::cout << " [x] Awaiting RPC requests" << std::endl;
+                AMQP::Envelope env(response);
+                env.setCorrelationID(message.correlationID());
+
+                channel.publish("", message.replyTo(), env);
+                channel.ack(deliveryTag);
+            };
+
+    channel.consume("").onReceived(onMessageReceived);
+
+    std::cout << " [x] Awaiting RPC requests" << std::endl << std::flush;
+
     handler.loop();
+
     return 0;
 }

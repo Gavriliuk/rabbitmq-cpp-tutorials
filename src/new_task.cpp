@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "SimplePocoHandler.h"
+
 #include "tools.h"
 
 int main(int argc, const char* argv[])
@@ -11,19 +12,22 @@ int main(int argc, const char* argv[])
     SimplePocoHandler handler("localhost", 5672);
 
     AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
+
     AMQP::Channel channel(&connection);
 
-    AMQP::QueueCallback callback =
+    AMQP::QueueCallback onQueueDeclared =
             [&](const std::string &name, int msgcount, int consumercount)
             {
                 AMQP::Envelope env(msg);
                 env.setDeliveryMode(2);
                 channel.publish("", "task_queue", env);
-                std::cout<<" [x] Sent '"<<msg<<"'\n";
+                std::cout << " [x] Sent '" << msg << "'" << std::endl << std::flush;
                 handler.quit();
             };
 
-    channel.declareQueue("task_queue", AMQP::durable).onSuccess(callback);
+    channel.declareQueue("task_queue", AMQP::durable).onSuccess(onQueueDeclared);
+
     handler.loop();
+
     return 0;
 }

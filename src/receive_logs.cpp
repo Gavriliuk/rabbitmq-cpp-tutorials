@@ -9,29 +9,31 @@ int main(void)
     AMQP::Connection connection(&handler, AMQP::Login("guest", "guest"), "/");
 
     AMQP::Channel channel(&connection);
-    auto receiveMessageCallback = [](const AMQP::Message &message,
-            uint64_t deliveryTag,
-            bool redelivered)
-    {
 
-        std::cout <<" [x] "<<message.message() << std::endl;
-    };
+    AMQP::MessageCallback onMessageReceived =
+            [](const AMQP::Message &message, uint64_t deliveryTag, bool redelivered)
+            {
+                std::cout << " [x] " << message.message() << std::endl << std::flush;
+            };
 
-    AMQP::QueueCallback callback =
+    AMQP::QueueCallback onQueueDeclared =
             [&](const std::string &name, int msgcount, int consumercount)
             {
                 channel.bindQueue("logs", name,"");
-                channel.consume(name, AMQP::noack).onReceived(receiveMessageCallback);
+                channel.consume(name, AMQP::noack).onReceived(onMessageReceived);
             };
 
-    AMQP::SuccessCallback success = [&]()
+    AMQP::SuccessCallback onExchangeDeclared =
+            [&]()
             {
-                channel.declareQueue(AMQP::exclusive).onSuccess(callback);
+                channel.declareQueue(AMQP::exclusive).onSuccess(onQueueDeclared);
             };
 
-    channel.declareExchange("logs", AMQP::fanout).onSuccess(success);
+    channel.declareExchange("logs", AMQP::fanout).onSuccess(onExchangeDeclared);
 
-    std::cout << " [*] Waiting for messages. To exit press CTRL-C\n";
+    std::cout << " [*] Waiting for messages. To exit press CTRL-C" << std::endl << std::flush;
+
     handler.loop();
+
     return 0;
 }
